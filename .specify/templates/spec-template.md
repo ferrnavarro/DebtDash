@@ -26,7 +26,8 @@
 
 **Why this priority**: [Explain the value and why it has this priority level]
 
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
+**Independent Test**: [Describe how this can be tested independently - include test
+levels (unit/integration/e2e or contract) and the value delivered]
 
 **Acceptance Scenarios**:
 
@@ -74,6 +75,8 @@
 
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
+- How does the experience remain consistent with existing UX patterns in [state]?
+- What happens when performance budgets are at risk or exceeded?
 
 ## Requirements *(mandatory)*
 
@@ -94,6 +97,36 @@
 
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+
+### Quality & Maintainability Requirements
+
+- **QR-001**: Changes MUST pass formatting, linting, and static analysis checks in CI.
+- **QR-002**: Non-trivial implementation decisions MUST be documented in the feature
+  plan or PR notes.
+
+### Testing Requirements
+
+- **TR-001**: New behavior MUST include unit tests for core logic and edge cases.
+- **TR-002**: Boundary interactions MUST include integration tests.
+- **TR-003**: Critical user journeys or contracts MUST include end-to-end or contract
+  tests.
+- **TR-004**: Failing tests MUST block merge and release.
+
+### User Experience Consistency Requirements
+
+- **UXR-001**: User-facing features MUST reuse existing components/tokens unless an
+  approved exception is documented.
+- **UXR-002**: Loading, empty, error, and success states MUST be explicitly defined.
+- **UXR-003**: Accessibility expectations (keyboard, screen reader, contrast, etc.)
+  MUST be documented and validated.
+
+### Performance Requirements
+
+- **PRF-001**: The feature MUST define measurable performance budgets before
+  implementation.
+- **PRF-002**: The feature MUST include a validation method for each budget.
+- **PRF-003**: Budget regressions MUST be treated as release blockers unless an
+  approved, time-bound exception exists.
 
 ### Key Entities *(include if feature involves data)*
 

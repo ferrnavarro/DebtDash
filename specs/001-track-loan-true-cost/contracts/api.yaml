@@ -1,0 +1,400 @@
+openapi: 3.0.3
+info:
+  title: DebtDash True Cost API
+  version: 0.1.0
+  description: Minimal API contract for loan configuration, payment logging, variance detection, and dashboard projections.
+servers:
+  - url: http://localhost:5000/api
+paths:
+  /loan:
+    get:
+      summary: Get active loan profile
+      responses:
+        '200':
+          description: Loan profile found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanProfile'
+        '404':
+          description: No loan profile configured
+    put:
+      summary: Create or update active loan profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanProfileUpsertRequest'
+      responses:
+        '200':
+          description: Loan profile saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanProfile'
+        '400':
+          description: Validation error
+  /payments:
+    get:
+      summary: List payment log entries in chronological order
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Paginated payment ledger
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentListResponse'
+    post:
+      summary: Create payment log entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentUpsertRequest'
+      responses:
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentLogEntry'
+        '400':
+          description: Validation error
+  /payments/{paymentId}:
+    put:
+      summary: Update existing payment log entry
+      parameters:
+        - in: path
+          name: paymentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentUpsertRequest'
+      responses:
+        '200':
+          description: Payment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentLogEntry'
+        '404':
+          description: Payment not found
+    delete:
+      summary: Delete payment log entry
+      parameters:
+        - in: path
+          name: paymentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Payment deleted
+        '404':
+          description: Payment not found
+  /dashboard:
+    get:
+      summary: Get dashboard KPI metrics and chart series
+      responses:
+        '200':
+          description: Dashboard metrics payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+  /projections/true-end-date:
+    get:
+      summary: Get latest true payoff projection
+      responses:
+        '200':
+          description: Projection payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectionSnapshot'
+components:
+  schemas:
+    LoanProfile:
+      type: object
+      required:
+        - id
+        - initialPrincipal
+        - annualRate
+        - termMonths
+        - startDate
+        - fixedMonthlyCosts
+        - currencyCode
+      properties:
+        id:
+          type: string
+          format: uuid
+        initialPrincipal:
+          type: number
+          format: decimal
+        annualRate:
+          type: number
+          format: decimal
+        termMonths:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        fixedMonthlyCosts:
+          type: number
+          format: decimal
+        currencyCode:
+          type: string
+    LoanProfileUpsertRequest:
+      type: object
+      required:
+        - initialPrincipal
+        - annualRate
+        - termMonths
+        - startDate
+        - fixedMonthlyCosts
+        - currencyCode
+      properties:
+        initialPrincipal:
+          type: number
+          format: decimal
+        annualRate:
+          type: number
+          format: decimal
+        termMonths:
+          type: integer
+          minimum: 1
+        startDate:
+          type: string
+          format: date
+        fixedMonthlyCosts:
+          type: number
+          format: decimal
+        currencyCode:
+          type: string
+    PaymentUpsertRequest:
+      type: object
+      required:
+        - paymentDate
+        - totalPaid
+        - principalPaid
+        - interestPaid
+        - feesPaid
+      properties:
+        paymentDate:
+          type: string
+          format: date
+        totalPaid:
+          type: number
+          format: decimal
+        principalPaid:
+          type: number
+          format: decimal
+        interestPaid:
+          type: number
+          format: decimal
+        feesPaid:
+          type: number
+          format: decimal
+        manualRateOverrideEnabled:
+          type: boolean
+        manualRateOverride:
+          type: number
+          format: decimal
+          nullable: true
+    PaymentLogEntry:
+      type: object
+      required:
+        - id
+        - paymentDate
+        - totalPaid
+        - principalPaid
+        - interestPaid
+        - feesPaid
+        - daysSincePreviousPayment
+        - remainingBalanceAfterPayment
+        - calculatedRealRate
+        - manualRateOverrideEnabled
+      properties:
+        id:
+          type: string
+          format: uuid
+        paymentDate:
+          type: string
+          format: date
+        totalPaid:
+          type: number
+          format: decimal
+        principalPaid:
+          type: number
+          format: decimal
+        interestPaid:
+          type: number
+          format: decimal
+        feesPaid:
+          type: number
+          format: decimal
+        daysSincePreviousPayment:
+          type: integer
+        remainingBalanceAfterPayment:
+          type: number
+          format: decimal
+        calculatedRealRate:
+          type: number
+          format: decimal
+        manualRateOverrideEnabled:
+          type: boolean
+        manualRateOverride:
+          type: number
+          format: decimal
+          nullable: true
+        rateVariance:
+          $ref: '#/components/schemas/RateVarianceRecord'
+    RateVarianceRecord:
+      type: object
+      required:
+        - calculatedRate
+        - varianceAbsolute
+        - varianceBasisPoints
+        - isFlagged
+      properties:
+        calculatedRate:
+          type: number
+          format: decimal
+        statedOrOverrideRate:
+          type: number
+          format: decimal
+          nullable: true
+        varianceAbsolute:
+          type: number
+          format: decimal
+        varianceBasisPoints:
+          type: number
+          format: decimal
+        isFlagged:
+          type: boolean
+    ProjectionSnapshot:
+      type: object
+      required:
+        - predictedEndDate
+        - remainingMonthsEstimate
+        - principalVelocity
+        - baselineRemainingMonths
+        - deltaMonthsVsBaseline
+      properties:
+        predictedEndDate:
+          type: string
+          format: date
+        remainingMonthsEstimate:
+          type: number
+          format: decimal
+        principalVelocity:
+          type: number
+          format: decimal
+        baselineRemainingMonths:
+          type: number
+          format: decimal
+        deltaMonthsVsBaseline:
+          type: number
+          format: decimal
+    DashboardResponse:
+      type: object
+      required:
+        - totalInterestPaid
+        - totalCapitalPaid
+        - averageRealRateWeighted
+        - timeRemainingMonths
+        - originalTermMonths
+        - principalInterestTrendSeries
+        - debtCountdownSeries
+      properties:
+        totalInterestPaid:
+          type: number
+          format: decimal
+        totalCapitalPaid:
+          type: number
+          format: decimal
+        averageRealRateWeighted:
+          type: number
+          format: decimal
+        timeRemainingMonths:
+          type: number
+          format: decimal
+        originalTermMonths:
+          type: integer
+        principalInterestTrendSeries:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrincipalInterestTrendPoint'
+        debtCountdownSeries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DebtCountdownPoint'
+    PrincipalInterestTrendPoint:
+      type: object
+      required:
+        - date
+        - principalPaid
+        - interestPaid
+      properties:
+        date:
+          type: string
+          format: date
+        principalPaid:
+          type: number
+          format: decimal
+        interestPaid:
+          type: number
+          format: decimal
+    DebtCountdownPoint:
+      type: object
+      required:
+        - date
+        - remainingBalance
+      properties:
+        date:
+          type: string
+          format: date
+        remainingBalance:
+          type: number
+          format: decimal
+    PaymentListResponse:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - totalItems
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentLogEntry'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
