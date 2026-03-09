@@ -55,14 +55,74 @@
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/dashboard` | Get aggregated dashboard KPIs and chart data |
+| GET | `/api/dashboard` | Get comparison dashboard relative to no-extra-principal baseline |
+| GET | `/api/dashboard?window=trailing-6-months` | Same, scoped to a time window |
 
-**Response:**
-- `totalInterestPaid`, `totalCapitalPaid` - Running totals
-- `averageRealRateWeighted` - Balance-weighted average real annual rate
-- `timeRemainingMonths` - Proportional estimate based on remaining balance
-- `principalInterestTrendSeries` - Per-payment principal vs interest breakdown
-- `debtCountdownSeries` - Per-payment remaining balance trend
+**Window parameter values:**
+
+| Value | Description |
+|-------|-------------|
+| `full-history` | All payments start-to-latest (default) |
+| `trailing-6-months` | Last 6 months from latest payment date |
+| `trailing-12-months` | Last 12 months from latest payment date |
+| `year-to-date` | Jan 1 of current year to latest payment date |
+
+**Response fields:**
+
+- `state` — `"ready"` / `"limitedData"` / `"empty"`
+  - `ready`: ≥2 payments, full comparison available
+  - `limitedData`: exactly 1 payment, summary only
+  - `empty`: no payments, guidance message only
+- `activeWindow` — `{ key, label, rangeStart, rangeEnd }`
+- `availableWindows` — array of `{ key, label, rangeStart, rangeEnd }` (always 4 entries)
+- `summary` — comparison summary object:
+  - `windowKey` — active window key (camelCase)
+  - `currentStatus` — `"ahead"` / `"onTrack"` / `"behind"` / `"insufficientData"`
+  - `remainingBalanceDelta` — positive = actual balance lower than baseline (ahead)
+  - `cumulativeInterestAvoided` — positive = interest saved vs baseline
+  - `monthsSaved` — projected months removed from payoff term
+  - `projectedPayoffDateDelta` — days ahead (-) or behind (+) projected payoff
+  - `firstMeaningfulDivergenceDate` — ISO date of first statistically significant divergence (nullable)
+  - `lastRecalculatedAt` — ISO datetime of last calculation
+  - `explanatoryStateMessage` — human-readable explanation of current state
+- `balanceSeries` — array of `{ date, actualRemainingBalance, baselineRemainingBalance, balanceDelta, interestDelta, containsExtraPrincipalEffect }`
+- `costSeries` — same shape, tracking cumulative interest instead of balance
+- `milestones` — array of `{ type, date, title, description, value? }`
+  - `type` values: `"divergenceStart"`, `"highestBalanceGap"`, `"highestInterestSavings"`, `"earlyPayoff"`
+
+**Baseline calculation**: The baseline amortizes the original principal at the loan's annual rate over the original term, using a standard annuity PMT formula. Interest is computed using 30-day periods (ACT/365 day-count). Extra principal payments diverge the actual balance from this baseline.
+
+**Example response (ready state):**
+```json
+{
+  "state": "ready",
+  "activeWindow": { "key": "fullHistory", "label": "Full History", "rangeStart": "2024-01-15", "rangeEnd": "2024-07-15" },
+  "availableWindows": [
+    { "key": "fullHistory",      "label": "Full History",        "rangeStart": "2024-01-15", "rangeEnd": "2024-07-15" },
+    { "key": "trailing6Months",  "label": "Trailing 6 Months",   "rangeStart": "2024-01-15", "rangeEnd": "2024-07-15" },
+    { "key": "trailing12Months", "label": "Trailing 12 Months",  "rangeStart": "2024-01-15", "rangeEnd": "2024-07-15" },
+    { "key": "yearToDate",       "label": "Year to Date",        "rangeStart": "2024-01-01", "rangeEnd": "2024-07-15" }
+  ],
+  "summary": {
+    "windowKey": "fullHistory",
+    "currentStatus": "ahead",
+    "remainingBalanceDelta": 2450.25,
+    "cumulativeInterestAvoided": 312.80,
+    "monthsSaved": 4.2,
+    "projectedPayoffDateDelta": -127.0,
+    "firstMeaningfulDivergenceDate": "2024-02-15",
+    "lastRecalculatedAt": "2025-01-01T00:00:00Z",
+    "explanatoryStateMessage": "You are ahead of your baseline schedule."
+  },
+  "balanceSeries": [
+    { "date": "2024-02-15", "actualRemainingBalance": 198450.0, "baselineRemainingBalance": 199345.0, "balanceDelta": 895.0, "interestDelta": 0.0, "containsExtraPrincipalEffect": true }
+  ],
+  "costSeries": [ ... ],
+  "milestones": [
+    { "type": "divergenceStart", "date": "2024-02-15", "title": "Balance Divergence Began", "description": "Your balance first fell below baseline.", "value": null }
+  ]
+}
+```
 
 ### Projections
 

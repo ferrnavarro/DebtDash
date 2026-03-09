@@ -1,5 +1,91 @@
 namespace DebtDash.Web.Api.Contracts;
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Comparison Dashboard Contracts (Feature 001-advanced-loan-dashboards)
+// ──────────────────────────────────────────────────────────────────────────────
+
+public enum DashboardWindowKey
+{
+    FullHistory,
+    Trailing6Months,
+    Trailing12Months,
+    YearToDate,
+}
+
+public enum ComparisonStatus
+{
+    Ahead,
+    OnTrack,
+    Behind,
+    InsufficientData,
+}
+
+public enum DashboardState
+{
+    Ready,
+    Empty,
+    LimitedData,
+}
+
+public enum MilestoneType
+{
+    DivergenceStart,
+    HighestBalanceGap,
+    HighestInterestSavings,
+    EarlyPayoff,
+    Overlap,
+}
+
+public record DashboardWindowResponse(
+    DashboardWindowKey Key,
+    string Label,
+    DateOnly RangeStart,
+    DateOnly RangeEnd);
+
+public record ComparisonSummaryResponse(
+    DashboardWindowKey WindowKey,
+    ComparisonStatus CurrentStatus,
+    decimal? MonthsSaved,
+    decimal? ProjectedPayoffDateDelta,
+    decimal? RemainingBalanceDelta,
+    decimal? CumulativeInterestAvoided,
+    DateOnly? FirstMeaningfulDivergenceDate,
+    DateTime LastRecalculatedAt,
+    string ExplanatoryStateMessage);
+
+public record ComparisonTimelinePointResponse(
+    DateOnly Date,
+    decimal ActualRemainingBalance,
+    decimal BaselineRemainingBalance,
+    decimal ActualCumulativeInterest,
+    decimal BaselineCumulativeInterest,
+    decimal ActualCumulativePrincipal,
+    decimal BaselineCumulativePrincipal,
+    decimal BalanceDelta,
+    decimal InterestDelta,
+    decimal PayoffProgressDeltaMonths,
+    bool ContainsExtraPrincipalEffect);
+
+public record ComparisonMilestoneResponse(
+    MilestoneType Type,
+    DateOnly Date,
+    string Title,
+    string Description,
+    decimal? Value);
+
+public record DashboardComparisonResponse(
+    ComparisonSummaryResponse Summary,
+    List<ComparisonTimelinePointResponse> BalanceSeries,
+    List<ComparisonTimelinePointResponse> CostSeries,
+    List<ComparisonMilestoneResponse> Milestones,
+    List<DashboardWindowResponse> AvailableWindows,
+    DashboardWindowResponse ActiveWindow,
+    DashboardState State);
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Existing Contracts (preserved for backward compatibility)
+// ──────────────────────────────────────────────────────────────────────────────
+
 public record LoanProfileResponse(
     Guid Id,
     decimal InitialPrincipal,

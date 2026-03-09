@@ -1,27 +1,36 @@
 import { useState, useEffect } from 'react';
-import { getDashboard, getProjection } from '../services/dashboardApi';
-import type { DashboardData, ProjectionData } from '../services/dashboardApi';
+import { getDashboardComparison, getProjection } from '../services/dashboardApi';
+import type { DashboardComparisonData, DashboardWindowKey, ProjectionData } from '../services/dashboardApi';
 import KpiCard from '../components/KpiCard';
-import PrincipalInterestTrendChart from '../charts/PrincipalInterestTrendChart';
-import DebtCountdownChart from '../charts/DebtCountdownChart';
+import ComparisonStatusBanner from '../components/ComparisonStatusBanner';
+import ComparisonSummaryCards from '../components/ComparisonSummaryCards';
+import DashboardWindowSelector from '../components/DashboardWindowSelector';
+import ComparisonBalanceChart from '../charts/ComparisonBalanceChart';
+import ComparisonCostChart from '../charts/ComparisonCostChart';
+import ComparisonMilestones from '../components/ComparisonMilestones';
+import ComparisonSavingsHighlights from '../components/ComparisonSavingsHighlights';
 
 type Status = 'loading' | 'idle' | 'error';
 
 export default function DashboardPage() {
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState<string | null>(null);
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardComparisonData | null>(null);
   const [projection, setProjection] = useState<ProjectionData | null>(null);
+  const [activeWindow, setActiveWindow] = useState<DashboardWindowKey>('fullHistory');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(activeWindow);
+  }, [activeWindow]);
 
-  async function loadData() {
+  async function loadData(window: DashboardWindowKey) {
     setStatus('loading');
     setError(null);
     try {
-      const [dash, proj] = await Promise.all([getDashboard(), getProjection()]);
+      const [dash, proj] = await Promise.all([
+        getDashboardComparison(window),
+        getProjection(),
+      ]);
       setDashboard(dash);
       setProjection(proj);
       setStatus('idle');
@@ -46,7 +55,7 @@ export default function DashboardPage() {
         <h1>Dashboard</h1>
         <div role="alert" className="alert alert-error">
           {error}
-          <button onClick={loadData} type="button">Retry</button>
+          <button onClick={() => loadData(activeWindow)} type="button">Retry</button>
         </div>
       </main>
     );
@@ -67,36 +76,64 @@ export default function DashboardPage() {
     <main className="page">
       <h1>Dashboard</h1>
 
-      <div className="kpi-grid" role="region" aria-label="Key metrics">
-        <KpiCard label="Total Interest Paid" value={`$${dashboard.totalInterestPaid.toFixed(2)}`} />
-        <KpiCard label="Total Capital Paid" value={`$${dashboard.totalCapitalPaid.toFixed(2)}`} />
-        <KpiCard label="Avg Real Rate" value={`${dashboard.averageRealRateWeighted.toFixed(4)}%`} />
-        <KpiCard label="Time Remaining" value={`${dashboard.timeRemainingMonths.toFixed(1)} mo`} />
-        <KpiCard label="Original Term" value={`${dashboard.originalTermMonths} mo`} />
-        {projection && (
-          <>
+      {/* Time window selector — T029/T030 */}
+      {dashboard.availableWindows.length > 0 && (
+        <DashboardWindowSelector
+          windows={dashboard.availableWindows}
+          activeKey={dashboard.activeWindow.key}
+          onSelect={(key) => setActiveWindow(key)}
+        />
+      )}
+
+      {/* Comparison status banner — T018/T020 */}
+      <ComparisonStatusBanner summary={dashboard.summary} state={dashboard.state} />
+
+      {/* Comparison summary KPI cards — T017 */}
+      <ComparisonSummaryCards summary={dashboard.summary} state={dashboard.state} />
+
+      {/* Legacy KPI metrics region */}
+      {projection && (
+        <section aria-label="Projection metrics">
+          <div className="kpi-grid" role="region" aria-label="Projection key metrics">
             <KpiCard label="Predicted End Date" value={projection.predictedEndDate} />
             <KpiCard
               label="vs Baseline"
               value={`${projection.deltaMonthsVsBaseline > 0 ? '+' : ''}${projection.deltaMonthsVsBaseline.toFixed(1)} mo`}
               variant={projection.deltaMonthsVsBaseline < 0 ? 'positive' : projection.deltaMonthsVsBaseline > 0 ? 'negative' : 'neutral'}
             />
-          </>
-        )}
-      </div>
-
-      {dashboard.principalInterestTrendSeries.length > 0 && (
-        <section className="chart-section">
-          <h2>Principal vs Interest Trend</h2>
-          <PrincipalInterestTrendChart data={dashboard.principalInterestTrendSeries} />
+          </div>
         </section>
       )}
 
-      {dashboard.debtCountdownSeries.length > 0 && (
+      {/* Savings highlights — T038/T039 */}
+      <ComparisonSavingsHighlights summary={dashboard.summary} />
+
+      {/* Comparison balance chart — T027/T030 */}
+      {dashboard.balanceSeries.length > 0 && (
         <section className="chart-section">
-          <h2>Debt Countdown</h2>
-          <DebtCountdownChart data={dashboard.debtCountdownSeries} />
+          <h2>Balance vs Baseline</h2>
+          <ComparisonBalanceChart data={dashboard.balanceSeries} />
         </section>
+      )}
+
+      {/* Comparison cost chart — T028/T030 */}
+      {dashboard.costSeries.length > 0 && (
+        <section className="chart-section">
+          <h2>Cumulative Interest vs Baseline</h2>
+          <ComparisonCostChart data={dashboard.costSeries} />
+        </section>
+      )}
+
+      {/* Milestones — T037/T039 */}
+      {dashboard.milestones.length > 0 && (
+        <ComparisonMilestones milestones={dashboard.milestones} />
+      )}
+
+      {/* Limited-data / empty detail message — T020 */}
+      {(dashboard.state === 'empty' || dashboard.state === 'limitedData') && (
+        <div className="empty-state" aria-live="polite" role="note">
+          <p>{dashboard.summary.explanatoryStateMessage}</p>
+        </div>
       )}
     </main>
   );
