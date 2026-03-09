@@ -92,4 +92,50 @@ public class DashboardProjectionPerformanceTests : IDisposable
 
         Assert.True(p95 < 300, $"GET /api/projections/true-end-date p95 latency was {p95}ms, expected < 300ms");
     }
+
+    // T004: Comparison-specific performance budgets
+
+    [Fact]
+    public async Task Get_dashboard_with_full_history_window_responds_within_300ms_p95()
+    {
+        await SeedData();
+
+        var timings = new List<long>();
+        for (var i = 0; i < 20; i++)
+        {
+            var sw = Stopwatch.StartNew();
+            var response = await _client.GetAsync("/api/dashboard?window=full-history");
+            sw.Stop();
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            timings.Add(sw.ElapsedMilliseconds);
+        }
+
+        timings.Sort();
+        var p95Index = (int)Math.Ceiling(timings.Count * 0.95) - 1;
+        var p95 = timings[p95Index];
+
+        Assert.True(p95 < 300, $"GET /api/dashboard?window=full-history p95 latency was {p95}ms, expected < 300ms");
+    }
+
+    [Fact]
+    public async Task Get_dashboard_with_trailing_6_months_window_responds_within_300ms_p95()
+    {
+        await SeedData();
+
+        var timings = new List<long>();
+        for (var i = 0; i < 20; i++)
+        {
+            var sw = Stopwatch.StartNew();
+            var response = await _client.GetAsync("/api/dashboard?window=trailing-6-months");
+            sw.Stop();
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            timings.Add(sw.ElapsedMilliseconds);
+        }
+
+        timings.Sort();
+        var p95Index = (int)Math.Ceiling(timings.Count * 0.95) - 1;
+        var p95 = timings[p95Index];
+
+        Assert.True(p95 < 300, $"GET /api/dashboard?window=trailing-6-months p95 latency was {p95}ms, expected < 300ms");
+    }
 }

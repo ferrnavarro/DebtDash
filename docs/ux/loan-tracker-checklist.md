@@ -54,3 +54,14 @@
 - [ ] Data tables have proper `<th>` and `scope` attributes
 - [ ] Chart data is available in text/table form for screen readers
 - [ ] Navigation landmarks are properly defined
+
+## Comparison Dashboard States (T005)
+
+- [ ] Comparison status banner shows "ahead", "on-track", "behind", or "insufficient-data" with visible text
+- [ ] Summary cards show balance delta, interest avoided, and months saved (or N/A when unavailable)
+- [ ] Limited-data state shows `explanatoryStateMessage` explaining why comparison is not yet possible
+- [ ] Window selector is keyboard-accessible; active window has `aria-pressed` or equivalent
+- [ ] Chart sections have adjacent text summaries for screen-reader users
+- [ ] Comparison charts use distinct accessible colors (solid vs dashed) for actual vs baseline series
+- [ ] Dashboard refreshes comparison metrics after a payment is added, edited, or deleted
+- [ ] All new comparison UI elements respect reduced-motion preferences for chart animations

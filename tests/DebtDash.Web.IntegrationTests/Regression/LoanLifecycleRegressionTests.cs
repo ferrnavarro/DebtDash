@@ -88,16 +88,14 @@ public class LoanLifecycleRegressionTests : IDisposable
         Assert.NotNull(list);
         Assert.Equal(2, list.TotalItems);
 
-        // Step 7: Get dashboard - should have aggregated data
+        // Step 7: Get dashboard - should have comparison data
         var dashResponse = await _client.GetAsync("/api/dashboard");
         Assert.Equal(HttpStatusCode.OK, dashResponse.StatusCode);
         var dash = await dashResponse.Content.ReadFromJsonAsync<DashboardDto>();
         Assert.NotNull(dash);
-        Assert.Equal(850m, dash.TotalInterestPaid); // 450 + 400
-        Assert.Equal(2050m, dash.TotalCapitalPaid); // 1000 + 1050
-        Assert.True(dash.AverageRealRateWeighted > 0);
-        Assert.Equal(2, dash.PrincipalInterestTrendSeries.Count);
-        Assert.Equal(2, dash.DebtCountdownSeries.Count);
+        Assert.Equal("ready", dash.State);
+        Assert.NotEmpty(dash.BalanceSeries);
+        Assert.Equal(4, dash.AvailableWindows.Count);
 
         // Step 8: Get projection
         var projResponse = await _client.GetAsync("/api/projections/true-end-date");
@@ -120,11 +118,12 @@ public class LoanLifecycleRegressionTests : IDisposable
         });
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
-        // Step 10: Verify dashboard reflects update
+        // Step 10: Verify dashboard reflects update (still ready state)
         var dash2Response = await _client.GetAsync("/api/dashboard");
         var dash2 = await dash2Response.Content.ReadFromJsonAsync<DashboardDto>();
         Assert.NotNull(dash2);
-        Assert.Equal(2550m, dash2.TotalCapitalPaid); // 1500 + 1050
+        Assert.Equal("ready", dash2.State);
+        Assert.NotEmpty(dash2.BalanceSeries);
 
         // Step 11: Delete second payment
         var deleteResponse = await _client.DeleteAsync($"/api/payments/{list.Items[1].Id}");
@@ -162,12 +161,13 @@ public class LoanLifecycleRegressionTests : IDisposable
 
     private record PaymentListDto(List<PaymentDto> Items, int Page, int PageSize, int TotalItems);
 
-    private record DashboardDto(decimal TotalInterestPaid, decimal TotalCapitalPaid,
-        decimal AverageRealRateWeighted, decimal TimeRemainingMonths, int OriginalTermMonths,
-        List<TrendPoint> PrincipalInterestTrendSeries, List<CountdownPoint> DebtCountdownSeries);
+    private record DashboardDto(
+        string State,
+        List<LifecycleSeriesPoint> BalanceSeries,
+        List<LifecycleWindow> AvailableWindows);
 
-    private record TrendPoint(string Date, decimal PrincipalPaid, decimal InterestPaid);
-    private record CountdownPoint(string Date, decimal RemainingBalance);
+    private record LifecycleSeriesPoint(string Date);
+    private record LifecycleWindow(string Key);
 
     private record ProjectionDto(string PredictedEndDate, decimal RemainingMonthsEstimate,
         decimal PrincipalVelocity, decimal BaselineRemainingMonths, decimal DeltaMonthsVsBaseline);

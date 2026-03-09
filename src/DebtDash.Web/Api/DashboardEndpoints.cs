@@ -11,7 +11,8 @@ public static class DashboardEndpoints
     {
         group.MapGet("/", async (
             DebtDashDbContext db,
-            IDashboardAggregationService dashboardService) =>
+            IDashboardAggregationService dashboardService,
+            string? window) =>
         {
             var loan = await db.LoanProfiles.FirstOrDefaultAsync();
             if (loan is null)
@@ -22,9 +23,19 @@ public static class DashboardEndpoints
                 .OrderBy(p => p.PaymentDate)
                 .ToListAsync();
 
-            return Results.Ok(dashboardService.BuildDashboard(loan, payments));
+            var windowKey = ParseWindowKey(window);
+            return Results.Ok(dashboardService.BuildComparisonDashboard(loan, payments, windowKey));
         });
 
         return group;
     }
+
+    private static DashboardWindowKey ParseWindowKey(string? window) =>
+        window?.ToLowerInvariant() switch
+        {
+            "trailing-6-months" => DashboardWindowKey.Trailing6Months,
+            "trailing-12-months" => DashboardWindowKey.Trailing12Months,
+            "year-to-date" => DashboardWindowKey.YearToDate,
+            _ => DashboardWindowKey.FullHistory, // default and "full-history"
+        };
 }

@@ -1,0 +1,208 @@
+openapi: 3.0.3
+info:
+  title: DebtDash Dashboard Comparison API
+  version: 0.2.0
+  description: API contract for advanced dashboard comparisons between actual loan behavior and a no-extra-principal baseline.
+servers:
+  - url: http://localhost:5000/api
+paths:
+  /dashboard:
+    get:
+      summary: Get dashboard KPI metrics and advanced actual-versus-baseline comparison data
+      parameters:
+        - in: query
+          name: window
+          required: false
+          schema:
+            $ref: '#/components/schemas/DashboardWindowKey'
+          description: Preset history window for the dashboard comparison view.
+      responses:
+        '200':
+          description: Dashboard comparison payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardComparisonResponse'
+        '404':
+          description: No loan profile configured
+components:
+  schemas:
+    DashboardWindowKey:
+      type: string
+      enum:
+        - full-history
+        - trailing-6-months
+        - trailing-12-months
+        - year-to-date
+    DashboardWindow:
+      type: object
+      required:
+        - key
+        - label
+        - rangeStart
+        - rangeEnd
+      properties:
+        key:
+          $ref: '#/components/schemas/DashboardWindowKey'
+        label:
+          type: string
+        rangeStart:
+          type: string
+          format: date
+        rangeEnd:
+          type: string
+          format: date
+    ComparisonSummary:
+      type: object
+      required:
+        - windowKey
+        - currentStatus
+        - lastRecalculatedAt
+        - explanatoryStateMessage
+      properties:
+        windowKey:
+          $ref: '#/components/schemas/DashboardWindowKey'
+        currentStatus:
+          type: string
+          enum:
+            - ahead
+            - on-track
+            - behind
+            - insufficient-data
+        monthsSaved:
+          type: number
+          format: decimal
+          nullable: true
+        projectedPayoffDateDelta:
+          type: number
+          format: decimal
+          nullable: true
+          description: Positive values indicate actual payoff is earlier than baseline.
+        remainingBalanceDelta:
+          type: number
+          format: decimal
+          nullable: true
+        cumulativeInterestAvoided:
+          type: number
+          format: decimal
+          nullable: true
+        firstMeaningfulDivergenceDate:
+          type: string
+          format: date
+          nullable: true
+        lastRecalculatedAt:
+          type: string
+          format: date-time
+        explanatoryStateMessage:
+          type: string
+    ComparisonTimelinePoint:
+      type: object
+      required:
+        - date
+        - actualRemainingBalance
+        - baselineRemainingBalance
+        - actualCumulativeInterest
+        - baselineCumulativeInterest
+        - actualCumulativePrincipal
+        - baselineCumulativePrincipal
+        - balanceDelta
+        - interestDelta
+        - payoffProgressDeltaMonths
+        - containsExtraPrincipalEffect
+      properties:
+        date:
+          type: string
+          format: date
+        actualRemainingBalance:
+          type: number
+          format: decimal
+        baselineRemainingBalance:
+          type: number
+          format: decimal
+        actualCumulativeInterest:
+          type: number
+          format: decimal
+        baselineCumulativeInterest:
+          type: number
+          format: decimal
+        actualCumulativePrincipal:
+          type: number
+          format: decimal
+        baselineCumulativePrincipal:
+          type: number
+          format: decimal
+        balanceDelta:
+          type: number
+          format: decimal
+        interestDelta:
+          type: number
+          format: decimal
+        payoffProgressDeltaMonths:
+          type: number
+          format: decimal
+        containsExtraPrincipalEffect:
+          type: boolean
+    ComparisonMilestone:
+      type: object
+      required:
+        - type
+        - date
+        - title
+        - description
+      properties:
+        type:
+          type: string
+          enum:
+            - divergence-start
+            - highest-balance-gap
+            - highest-interest-savings
+            - early-payoff
+            - overlap
+        date:
+          type: string
+          format: date
+        title:
+          type: string
+        description:
+          type: string
+        value:
+          type: number
+          format: decimal
+          nullable: true
+    DashboardComparisonResponse:
+      type: object
+      required:
+        - summary
+        - balanceSeries
+        - costSeries
+        - milestones
+        - availableWindows
+        - activeWindow
+        - state
+      properties:
+        summary:
+          $ref: '#/components/schemas/ComparisonSummary'
+        balanceSeries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComparisonTimelinePoint'
+        costSeries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComparisonTimelinePoint'
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComparisonMilestone'
+        availableWindows:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardWindow'
+        activeWindow:
+          $ref: '#/components/schemas/DashboardWindow'
+        state:
+          type: string
+          enum:
+            - ready
+            - empty
+            - limited-data

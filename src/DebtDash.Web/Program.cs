@@ -4,8 +4,15 @@ using DebtDash.Web.Domain.Services;
 using DebtDash.Web.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure JSON to serialize enums as camelCase strings
+builder.Services.ConfigureHttpJsonOptions(opts =>
+{
+    opts.SerializerOptions.Converters.Add(new JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase));
+});
 
 // Database
 builder.Services.AddDbContext<DebtDashDbContext>(options =>
@@ -16,6 +23,7 @@ builder.Services.AddValidationPipeline();
 
 // Domain services
 builder.Services.AddSingleton<IFinancialCalculationService, FinancialCalculationService>();
+builder.Services.AddSingleton<IComparisonTimelineCalculator, ComparisonTimelineCalculator>();
 builder.Services.AddScoped<IRateVarianceService, RateVarianceService>();
 builder.Services.AddScoped<ILoanProfileService, LoanProfileService>();
 builder.Services.AddScoped<IPaymentLedgerService, PaymentLedgerService>();
