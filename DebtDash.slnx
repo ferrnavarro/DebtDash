@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DebtDash.Web/DebtDash.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DebtDash.Web.E2ETests/DebtDash.Web.E2ETests.csproj" />
+    <Project Path="tests/DebtDash.Web.IntegrationTests/DebtDash.Web.IntegrationTests.csproj" />
+    <Project Path="tests/DebtDash.Web.UnitTests/DebtDash.Web.UnitTests.csproj" />
+  </Folder>
+</Solution>
