@@ -36,7 +36,7 @@ export default function ComparisonBalanceChart({ data }: Props) {
           <XAxis dataKey="date" />
           <YAxis
             tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
-            label={{ value: 'Balance', angle: -90, position: 'insideLeft', offset: 10 }}
+            label={{ value: 'Balance ($)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
           />
           <Tooltip
             formatter={(value: number | undefined, name: string | undefined) => [value != null ? `$${value.toFixed(2)}` : '', name ?? '']}
