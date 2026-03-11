@@ -165,6 +165,61 @@ public record DebtCountdownPoint(
     decimal RemainingBalance);
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Payment Calculator Contracts (Feature 001-smart-payment-calculator)
+// ──────────────────────────────────────────────────────────────────────────────
+
+public enum RateSource
+{
+    Ledger,
+    Baseline,
+}
+
+public record PaymentScheduleRequest(
+    DateOnly PayoffDate,
+    decimal? FeeAmount);
+
+public record SchedulePeriodEntry(
+    int PeriodNumber,
+    DateOnly DueDate,
+    decimal PrincipalComponent,
+    decimal InterestComponent,
+    decimal FeeComponent,
+    decimal TotalPayment,
+    decimal RemainingBalance);
+
+public record ScheduleSummary(
+    decimal TotalPrincipal,
+    decimal TotalInterest,
+    decimal TotalFees,
+    decimal TotalAmountPaid,
+    int PeriodCount);
+
+public record RateQuoteContext(
+    decimal AnnualRate,
+    RateSource Source,
+    DateTime ResolvedAt,
+    bool IsFallback,
+    string? FallbackReason,
+    bool RateChangedFromBaseline,
+    bool RateChangeWarning);
+
+public record PaymentScheduleResponse(
+    Guid LoanId,
+    decimal OutstandingBalance,
+    int Periods,
+    decimal MonthlyPaymentAmount,
+    decimal FeeAmountPerPeriod,
+    decimal TotalMonthlyAmount,
+    RateQuoteContext RateQuote,
+    List<SchedulePeriodEntry> Entries,
+    ScheduleSummary Summary,
+    DateTime CalculatedAt);
+
+public record FeeDefaultResponse(
+    decimal? DefaultFeeAmount,
+    DateOnly? SourcePaymentDate);
+
+// ──────────────────────────────────────────────────────────────────────────────
 // CSV Payment Import Contracts (Feature 001-csv-payment-import)
 // ──────────────────────────────────────────────────────────────────────────────
 
