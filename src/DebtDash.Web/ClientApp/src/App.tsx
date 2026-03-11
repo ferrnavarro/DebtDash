@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import LoanSetupPage from './pages/LoanSetupPage';
 import LedgerPage from './pages/LedgerPage';
 import DashboardPage from './pages/DashboardPage';
+import PaymentCalculatorPage from './pages/PaymentCalculatorPage';
 import './App.css';
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
             <li><NavLink to="/">Loan Setup</NavLink></li>
             <li><NavLink to="/ledger">Payment Ledger</NavLink></li>
             <li><NavLink to="/dashboard">Dashboard</NavLink></li>
+            <li><NavLink to="/calculator">Payment Calculator</NavLink></li>
           </ul>
         </nav>
         <div className="content">
@@ -21,6 +23,7 @@ function App() {
             <Route path="/" element={<LoanSetupPage />} />
             <Route path="/ledger" element={<LedgerPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/calculator" element={<PaymentCalculatorPage />} />
           </Routes>
         </div>
       </div>

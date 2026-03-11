@@ -30,6 +30,7 @@ builder.Services.AddScoped<IPaymentLedgerService, PaymentLedgerService>();
 builder.Services.AddScoped<ICsvImportService, CsvImportService>();
 builder.Services.AddScoped<IProjectionService, ProjectionService>();
 builder.Services.AddScoped<IDashboardAggregationService, DashboardAggregationService>();
+builder.Services.AddScoped<IPaymentScheduleCalculatorService, PaymentScheduleCalculatorService>();
 
 var spaPath = Path.Combine(builder.Environment.ContentRootPath, "ClientApp", "dist");
 
@@ -50,6 +51,7 @@ api.MapGroup("/loan").MapLoanEndpoints();
 api.MapGroup("/payments").MapPaymentEndpoints();
 api.MapGroup("/dashboard").MapDashboardEndpoints();
 api.MapGroup("/projections").MapProjectionEndpoints();
+api.MapGroup("/calculator").MapCalculatorEndpoints();
 
 // Serve SPA static files from ClientApp/dist
 if (Directory.Exists(spaPath))

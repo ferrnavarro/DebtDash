@@ -1,0 +1,319 @@
+openapi: 3.0.3
+info:
+  title: DebtDash Payment Calculator API
+  version: 0.1.0
+  description: >
+    Extends the DebtDash API with a payment schedule calculator.
+    The calculator accepts a target payoff date and optional fee override,
+    reads the current interest rate from the most recent payment ledger entry (falling back to the configured loan rate when the ledger is empty),
+    and returns a full amortization schedule with cost summary.
+servers:
+  - url: http://localhost:5000/api
+
+paths:
+  /calculator/default-fee:
+    get:
+      summary: Get the default fee from the most recent payment ledger entry
+      description: >
+        Returns the feesPaid value from the most recent ledger entry.
+        Returns null for defaultFeeAmount when the ledger is empty.
+        Used to pre-populate the fee input field on the calculator screen.
+      operationId: getCalculatorDefaultFee
+      responses:
+        '200':
+          description: Default fee retrieved (null when ledger is empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeDefaultResponse'
+              examples:
+                withFee:
+                  summary: Ledger has prior payments
+                  value:
+                    defaultFeeAmount: 75.00
+                    sourcePaymentDate: "2026-02-15"
+                empty:
+                  summary: Ledger is empty
+                  value:
+                    defaultFeeAmount: null
+                    sourcePaymentDate: null
+        '404':
+          description: No loan profile configured
+
+  /calculator/schedule:
+    post:
+      summary: Calculate a monthly payment schedule for the active loan
+      description: >
+        Derives the number of remaining monthly periods from the payoff date,
+        reads the current interest rate from the most recent payment ledger entry's CalculatedRealRate
+        (falling back to LoanProfile.AnnualRate when the ledger is empty), applies level-payment (PMT) amortization to the
+        outstanding balance, and returns a full month-by-month schedule with
+        per-period breakdown and total-cost summary.
+      operationId: calculatePaymentSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentScheduleRequest'
+            examples:
+              typical:
+                summary: Two-year payoff with explicit fee
+                value:
+                  payoffDate: "2028-03-01"
+                  feeAmount: 75.00
+              defaultFee:
+                summary: Uses default fee from ledger (null = use ledger default)
+                value:
+                  payoffDate: "2029-06-01"
+                  feeAmount: null
+      responses:
+        '200':
+          description: Payment schedule generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentScheduleResponse'
+        '400':
+          description: Validation error (invalid date, zero balance, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                pastDate:
+                  summary: Payoff date is in the past
+                  value:
+                    errors:
+                      payoffDate:
+                        - "Payoff date must be at least one full month in the future."
+                zeroBalance:
+                  summary: Loan is already paid off
+                  value:
+                    errors:
+                      general:
+                        - "Outstanding loan balance is zero. There is nothing to schedule."
+        '404':
+          description: No loan profile configured
+
+components:
+  schemas:
+    PaymentScheduleRequest:
+      type: object
+      required:
+        - payoffDate
+      properties:
+        payoffDate:
+          type: string
+          format: date
+          description: Target payoff end date. Must be at least one full calendar month ahead.
+          example: "2028-03-01"
+        feeAmount:
+          type: number
+          format: decimal
+          nullable: true
+          minimum: 0
+          description: >
+            Flat monthly fee applied to every period. If null, the system uses
+            the feesPaid value from the most recent payment ledger entry.
+            Provide 0 explicitly to override with no fee.
+          example: 75.00
+
+    PaymentScheduleResponse:
+      type: object
+      required:
+        - loanId
+        - outstandingBalance
+        - periods
+        - monthlyPaymentAmount
+        - feeAmountPerPeriod
+        - totalMonthlyAmount
+        - rateQuote
+        - entries
+        - summary
+        - calculatedAt
+      properties:
+        loanId:
+          type: string
+          format: uuid
+        outstandingBalance:
+          type: number
+          format: decimal
+          description: Loan balance at calculation time.
+          example: 142350.00
+        periods:
+          type: integer
+          description: Number of monthly payment periods in the schedule.
+          example: 24
+        monthlyPaymentAmount:
+          type: number
+          format: decimal
+          description: PMT amount (principal + interest) excluding fee.
+          example: 6285.50
+        feeAmountPerPeriod:
+          type: number
+          format: decimal
+          description: Flat fee added to each period payment.
+          example: 75.00
+        totalMonthlyAmount:
+          type: number
+          format: decimal
+          description: monthlyPaymentAmount + feeAmountPerPeriod.
+          example: 6360.50
+        rateQuote:
+          $ref: '#/components/schemas/RateQuoteContext'
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchedulePeriodEntry'
+        summary:
+          $ref: '#/components/schemas/ScheduleSummary'
+        calculatedAt:
+          type: string
+          format: date-time
+
+    SchedulePeriodEntry:
+      type: object
+      required:
+        - periodNumber
+        - dueDate
+        - principalComponent
+        - interestComponent
+        - feeComponent
+        - totalPayment
+        - remainingBalance
+      properties:
+        periodNumber:
+          type: integer
+          description: 1-based position in the schedule.
+          example: 1
+        dueDate:
+          type: string
+          format: date
+          description: First day of the month this payment is due.
+          example: "2026-04-01"
+        principalComponent:
+          type: number
+          format: decimal
+          example: 5699.92
+        interestComponent:
+          type: number
+          format: decimal
+          example: 585.58
+        feeComponent:
+          type: number
+          format: decimal
+          example: 75.00
+        totalPayment:
+          type: number
+          format: decimal
+          example: 6360.50
+        remainingBalance:
+          type: number
+          format: decimal
+          description: Balance remaining after this payment. Zero (±0.01) on the final period.
+          example: 136650.08
+
+    ScheduleSummary:
+      type: object
+      required:
+        - totalPrincipal
+        - totalInterest
+        - totalFees
+        - totalAmountPaid
+        - periodCount
+      properties:
+        totalPrincipal:
+          type: number
+          format: decimal
+          example: 142350.00
+        totalInterest:
+          type: number
+          format: decimal
+          example: 8451.97
+        totalFees:
+          type: number
+          format: decimal
+          example: 1800.00
+        totalAmountPaid:
+          type: number
+          format: decimal
+          example: 152601.97
+        periodCount:
+          type: integer
+          example: 24
+
+    RateQuoteContext:
+      type: object
+      required:
+        - annualRate
+        - source
+        - resolvedAt
+        - isFallback
+        - rateChangedFromBaseline
+        - rateChangeWarning
+      properties:
+        annualRate:
+          type: number
+          format: decimal
+          description: Annual interest rate applied (in percent, e.g., 5.5 for 5.5%).
+          example: 5.5
+        source:
+          type: string
+          enum: [ledger, baseline]
+          description: >
+            "ledger" when the rate is the CalculatedRealRate from the most recent payment
+            ledger entry. "baseline" when the ledger is empty and LoanProfile.AnnualRate
+            is used as the fallback.
+          example: ledger
+        resolvedAt:
+          type: string
+          format: date-time
+        isFallback:
+          type: boolean
+          description: true when no payment ledger entries exist and the stored baseline rate was used.
+          example: false
+        fallbackReason:
+          type: string
+          nullable: true
+          description: Human-readable reason for fallback; null when isFallback is false.
+          example: null
+        rateChangedFromBaseline:
+          type: boolean
+          description: true when the ledger-derived rate differs from LoanProfile.AnnualRate.
+          example: false
+        rateChangeWarning:
+          type: boolean
+          description: >
+            true when the absolute difference between the ledger rate and LoanProfile.AnnualRate
+            exceeds 50 basis points (0.5 percentage points).
+          example: false
+
+    FeeDefaultResponse:
+      type: object
+      required:
+        - defaultFeeAmount
+        - sourcePaymentDate
+      properties:
+        defaultFeeAmount:
+          type: number
+          format: decimal
+          nullable: true
+          description: feesPaid from the most recent ledger entry; null if ledger is empty.
+          example: 75.00
+        sourcePaymentDate:
+          type: string
+          format: date
+          nullable: true
+          description: paymentDate of the ledger entry used as source; null if ledger is empty.
+          example: "2026-02-15"
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
