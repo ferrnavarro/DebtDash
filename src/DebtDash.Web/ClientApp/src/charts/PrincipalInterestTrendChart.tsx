@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { fmtMonthYear } from '../utils/date';
 
 interface Props {
   data: { date: string; principalPaid: number; interestPaid: number }[];
@@ -9,7 +10,7 @@ export default function PrincipalInterestTrendChart({ data }: Props) {
     <div role="img" aria-label="Principal vs Interest trend chart">
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
-          <XAxis dataKey="date" />
+          <XAxis dataKey="date" tickFormatter={fmtMonthYear} />
           <YAxis />
           <Tooltip />
           <Legend />

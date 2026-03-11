@@ -13,6 +13,7 @@ import type {
   ImportConfirmResponse,
 } from '../services/paymentApi';
 import CsvImportDropzone from '../components/PaymentCsvImport/CsvImportDropzone';
+import { fmtUSD } from '../utils/currency';
 import ImportPreviewTable from '../components/PaymentCsvImport/ImportPreviewTable';
 import ImportResultSummary from '../components/PaymentCsvImport/ImportResultSummary';
 
@@ -287,12 +288,12 @@ export default function LedgerPage() {
                   <tr key={p.id}>
                     <td>{p.paymentDate}</td>
                     <td>{p.daysSincePreviousPayment}</td>
-                    <td>{p.totalPaid.toFixed(2)}</td>
-                    <td>{p.principalPaid.toFixed(2)}</td>
-                    <td>{p.interestPaid.toFixed(2)}</td>
-                    <td>{p.feesPaid.toFixed(2)}</td>
-                    <td>{p.remainingBalanceAfterPayment.toFixed(2)}</td>
-                    <td>{p.calculatedRealRate.toFixed(4)}%</td>
+                    <td>{fmtUSD(p.totalPaid)}</td>
+                    <td>{fmtUSD(p.principalPaid)}</td>
+                    <td>{fmtUSD(p.interestPaid)}</td>
+                    <td>{fmtUSD(p.feesPaid)}</td>
+                    <td>{fmtUSD(p.remainingBalanceAfterPayment)}</td>
+                    <td>{p.calculatedRealRate.toFixed(2)}%</td>
                     <td>
                       {p.rateVariance ? (
                         <span className={`variance-badge ${p.rateVariance.isFlagged ? 'flagged' : 'normal'}`}

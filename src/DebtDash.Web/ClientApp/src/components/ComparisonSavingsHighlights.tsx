@@ -1,4 +1,5 @@
 import type { ComparisonSummary } from '../services/dashboardApi';
+import { fmtUSD } from '../utils/currency';
 
 interface Props {
   summary: ComparisonSummary;
@@ -20,7 +21,7 @@ export default function ComparisonSavingsHighlights({ summary }: Props) {
         {summary.cumulativeInterestAvoided !== null && (
           <li className="savings-item savings-item--interest">
             <span className="savings-item__value" aria-label="Interest avoided">
-              ${summary.cumulativeInterestAvoided.toFixed(2)}
+              {fmtUSD(summary.cumulativeInterestAvoided)}
             </span>
             <span className="savings-item__label">in interest avoided so far</span>
           </li>

@@ -1,5 +1,6 @@
 import type { ComparisonSummary, DashboardState } from '../services/dashboardApi';
 import KpiCard from './KpiCard';
+import { fmtUSD } from '../utils/currency';
 
 interface Props {
   summary: ComparisonSummary;
@@ -16,7 +17,7 @@ export default function ComparisonSummaryCards({ summary, state }: Props) {
     v !== null ? `${v > 0 ? '+' : ''}${v.toFixed(1)}${suffix}` : 'N/A';
 
   const formatCurrency = (v: number | null) =>
-    v !== null ? `$${v.toFixed(2)}` : 'N/A';
+    v !== null ? fmtUSD(v) : 'N/A';
 
   const statusVariant = (s: ComparisonSummary['currentStatus']): 'positive' | 'negative' | 'neutral' => {
     if (s === 'ahead') return 'positive';

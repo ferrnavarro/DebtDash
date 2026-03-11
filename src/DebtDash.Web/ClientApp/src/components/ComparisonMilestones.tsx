@@ -1,4 +1,5 @@
 import type { ComparisonMilestone } from '../services/dashboardApi';
+import { fmtUSD } from '../utils/currency';
 
 interface Props {
   milestones: ComparisonMilestone[];
@@ -28,7 +29,7 @@ export default function ComparisonMilestones({ milestones }: Props) {
               <p className="milestone__description">{m.description}</p>
               {m.value !== null && (
                 <span className="milestone__value" aria-label="Associated value">
-                  ${Math.abs(m.value).toFixed(2)}
+                  {fmtUSD(Math.abs(m.value))}
                 </span>
               )}
             </div>

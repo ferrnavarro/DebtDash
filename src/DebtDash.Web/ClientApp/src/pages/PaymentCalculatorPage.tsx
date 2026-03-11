@@ -5,11 +5,9 @@ import {
   postSchedule,
 } from '../services/calculatorApi';
 import type { PaymentScheduleResponse } from '../services/calculatorApi';
+import { fmtUSD } from '../utils/currency';
 
 type PageStatus = 'idle' | 'loading' | 'error';
-
-const fmt = (n: number) =>
-  n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const fmtDate = (iso: string) => {
   const [y, m, d] = iso.split('-');
@@ -174,6 +172,34 @@ export default function PaymentCalculatorPage() {
             )
           </div>
 
+          {/* T029 / US4: Cost summary — shown before the table */}
+          <section
+            className="kpi-grid calculator-summary"
+            data-testid="schedule-summary"
+            aria-label="Schedule summary"
+          >
+            <div className="kpi-card">
+              <div className="kpi-value">{fmtUSD(schedule.summary.totalPrincipal)}</div>
+              <div className="kpi-label">Total Principal</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-value">{fmtUSD(schedule.summary.totalInterest)}</div>
+              <div className="kpi-label">Total Interest</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-value">{fmtUSD(schedule.summary.totalFees)}</div>
+              <div className="kpi-label">Total Fees</div>
+            </div>
+            <div className="kpi-card kpi-negative">
+              <div className="kpi-value">{fmtUSD(schedule.summary.totalAmountPaid)}</div>
+              <div className="kpi-label">Total Paid</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-value">{schedule.summary.periodCount}</div>
+              <div className="kpi-label">Months</div>
+            </div>
+          </section>
+
           {/* T012 / US1: Schedule table */}
           <div className="table-container" role="region" aria-label="Schedule table">
             <table aria-label="Payment schedule">
@@ -193,44 +219,16 @@ export default function PaymentCalculatorPage() {
                   <tr key={entry.periodNumber}>
                     <td>{entry.periodNumber}</td>
                     <td>{fmtDate(entry.dueDate)}</td>
-                    <td>${fmt(entry.totalPayment)}</td>
-                    <td>${fmt(entry.principalComponent)}</td>
-                    <td>${fmt(entry.interestComponent)}</td>
-                    <td data-col="fee">${fmt(entry.feeComponent)}</td>
-                    <td>${fmt(entry.remainingBalance)}</td>
+                    <td>{fmtUSD(entry.totalPayment)}</td>
+                    <td>{fmtUSD(entry.principalComponent)}</td>
+                    <td>{fmtUSD(entry.interestComponent)}</td>
+                    <td data-col="fee">{fmtUSD(entry.feeComponent)}</td>
+                    <td>{fmtUSD(entry.remainingBalance)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
-          {/* T029 / US4: Cost summary */}
-          <section
-            className="kpi-grid"
-            data-testid="schedule-summary"
-            aria-label="Schedule summary"
-          >
-            <div className="kpi-card">
-              <div className="kpi-value">${fmt(schedule.summary.totalPrincipal)}</div>
-              <div className="kpi-label">Total Principal</div>
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-value">${fmt(schedule.summary.totalInterest)}</div>
-              <div className="kpi-label">Total Interest</div>
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-value">${fmt(schedule.summary.totalFees)}</div>
-              <div className="kpi-label">Total Fees</div>
-            </div>
-            <div className="kpi-card kpi-negative">
-              <div className="kpi-value">${fmt(schedule.summary.totalAmountPaid)}</div>
-              <div className="kpi-label">Total Paid</div>
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-value">{schedule.summary.periodCount}</div>
-              <div className="kpi-label">Months</div>
-            </div>
-          </section>
         </>
       )}
     </main>

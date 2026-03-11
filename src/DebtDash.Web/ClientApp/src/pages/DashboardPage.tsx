@@ -112,7 +112,7 @@ export default function DashboardPage() {
       {dashboard.balanceSeries.length > 0 && (
         <section className="chart-section">
           <h2>Balance vs Baseline</h2>
-          <ComparisonBalanceChart data={dashboard.balanceSeries} />
+          <ComparisonBalanceChart data={dashboard.balanceSeries} fullHistory={activeWindow === 'fullHistory'} />
         </section>
       )}
 
@@ -120,7 +120,7 @@ export default function DashboardPage() {
       {dashboard.costSeries.length > 0 && (
         <section className="chart-section">
           <h2>Cumulative Interest vs Baseline</h2>
-          <ComparisonCostChart data={dashboard.costSeries} />
+          <ComparisonCostChart data={dashboard.costSeries} fullHistory={activeWindow === 'fullHistory'} />
         </section>
       )}
 
