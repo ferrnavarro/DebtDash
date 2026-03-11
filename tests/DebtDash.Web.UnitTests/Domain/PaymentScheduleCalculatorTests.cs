@@ -35,8 +35,8 @@ public class PaymentScheduleCalculatorTests
             100_000m, 6.0m, 12, new DateOnly(2026, 4, 1));
 
         monthlyPayment.Should().BeGreaterThan(0m);
-        // First period interest = 100 000 * 0.005 = 500 — payment must exceed that
-        monthlyPayment.Should().BeGreaterThan(500m);
+        // First period daily interest (April, 30 days) = 100 000 * 6% * 30/365 ≈ 493 — PMT ≈ 8607 must exceed that
+        monthlyPayment.Should().BeGreaterThan(493m);
     }
 
     [Fact]
@@ -301,8 +301,8 @@ public class PaymentScheduleCalculatorTests
 
         periods.Should().HaveCount(1);
         var p = periods[0];
-        // Single period: principal = 12 000, interest = 12 000 * 0.5% = 60
+        // Single period: principal = 12 000, interest = 12 000 * 6% * 30/365 (April 2026 = 30 days) = 59.18
         p.Principal.Should().Be(12_000m);
-        p.Interest.Should().Be(60m);
+        p.Interest.Should().Be(59.18m);
     }
 }

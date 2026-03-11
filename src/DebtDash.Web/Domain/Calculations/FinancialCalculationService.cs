@@ -34,10 +34,11 @@ public interface IFinancialCalculationService
 
     /// <summary>
     /// Calculate a level-payment (PMT) amortization schedule.
-    /// M = P × [r(1+r)^n] / [(1+r)^n − 1], where r = annualRate / 12 / 100.
-    /// Returns the base monthly payment (principal + interest) and one AmortizationPeriod per month.
+    /// The base monthly payment is derived with: M = P × [r(1+r)^n] / [(1+r)^n − 1], r = annualRate / 12 / 100.
+    /// Per-period interest uses daily accrual: interest = balance × annualRate/100 × daysInMonth/365,
+    /// where daysInMonth is the actual number of calendar days in that month.
     /// The final period's principal absorbs rounding so the ending balance is zero (±$0.01).
-    /// When annualRate is 0, balance is divided equally across all periods.
+    /// When annualRate is 0, balance is divided equally across all periods with zero interest.
     /// </summary>
     (decimal MonthlyPayment, IReadOnlyList<AmortizationPeriod> Periods) CalculateMonthlyAmortizationSchedule(
         decimal balance, decimal annualRate, int periods, DateOnly firstDueMonth);
@@ -99,7 +100,8 @@ public class FinancialCalculationService : IFinancialCalculationService
         for (var i = 1; i <= periods; i++)
         {
             var dueDate = firstDueMonth.AddMonths(i - 1);
-            var interest = Math.Round(remaining * r, 2);
+            var daysInMonth = dueDate.AddMonths(1).DayNumber - dueDate.DayNumber;
+            var interest = Math.Round(remaining * annualRate / 100m * daysInMonth / 365m, 2);
 
             decimal principal;
             decimal newRemaining;
