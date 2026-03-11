@@ -29,7 +29,7 @@ export default function LedgerPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<PaymentUpsertRequest>({
-    paymentDate: '',
+    paymentDate: new Date().toISOString().slice(0, 10),
     totalPaid: 0,
     principalPaid: 0,
     interestPaid: 0,
@@ -65,7 +65,7 @@ export default function LedgerPage() {
 
   function resetForm() {
     setForm({
-      paymentDate: '',
+      paymentDate: new Date().toISOString().slice(0, 10),
       totalPaid: 0,
       principalPaid: 0,
       interestPaid: 0,
@@ -95,11 +95,15 @@ export default function LedgerPage() {
     e.preventDefault();
     setStatus('saving');
     setError(null);
+    const derived = {
+      ...form,
+      totalPaid: (form.principalPaid || 0) + (form.interestPaid || 0) + (form.feesPaid || 0),
+    };
     try {
       if (editingId) {
-        await updatePayment(editingId, form);
+        await updatePayment(editingId, derived);
       } else {
-        await createPayment(form);
+        await createPayment(derived);
       }
       resetForm();
       await loadPayments();
@@ -205,20 +209,6 @@ export default function LedgerPage() {
           <h2>{editingId ? 'Edit Payment' : 'New Payment'}</h2>
           <div className="form-row">
             <div className="form-field">
-              <label htmlFor="paymentDate">Payment Date</label>
-              <input id="paymentDate" type="date" required aria-required="true"
-                value={form.paymentDate}
-                onChange={(e) => setForm({ ...form, paymentDate: e.target.value })} />
-            </div>
-            <div className="form-field">
-              <label htmlFor="totalPaid">Total Paid</label>
-              <input id="totalPaid" type="number" step="0.01" min="0.01" required aria-required="true"
-                value={form.totalPaid || ''}
-                onChange={(e) => setForm({ ...form, totalPaid: parseFloat(e.target.value) || 0 })} />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-field">
               <label htmlFor="principalPaid">Principal</label>
               <input id="principalPaid" type="number" step="0.01" min="0" required
                 value={form.principalPaid || ''}
@@ -237,21 +227,20 @@ export default function LedgerPage() {
                 onChange={(e) => setForm({ ...form, feesPaid: parseFloat(e.target.value) || 0 })} />
             </div>
           </div>
-          <div className="form-field">
-            <label>
-              <input type="checkbox" checked={form.manualRateOverrideEnabled || false}
-                onChange={(e) => setForm({ ...form, manualRateOverrideEnabled: e.target.checked })} />
-              Enable Manual Rate Override
-            </label>
-          </div>
-          {form.manualRateOverrideEnabled && (
+          <div className="form-row">
             <div className="form-field">
-              <label htmlFor="manualRateOverride">Override Rate (%)</label>
-              <input id="manualRateOverride" type="number" step="0.0001" required
-                value={form.manualRateOverride ?? ''}
-                onChange={(e) => setForm({ ...form, manualRateOverride: parseFloat(e.target.value) || null })} />
+              <label htmlFor="totalPaidDisplay">Total Paid</label>
+              <input id="totalPaidDisplay" type="text" readOnly
+                value={((form.principalPaid || 0) + (form.interestPaid || 0) + (form.feesPaid || 0)).toFixed(2)}
+                aria-label="Total paid (calculated)" />
             </div>
-          )}
+            <div className="form-field">
+              <label htmlFor="paymentDate">Payment Date</label>
+              <input id="paymentDate" type="date" required aria-required="true"
+                value={form.paymentDate}
+                onChange={(e) => setForm({ ...form, paymentDate: e.target.value })} />
+            </div>
+          </div>
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={status === 'saving'}>
               {status === 'saving' ? 'Saving...' : editingId ? 'Update' : 'Create'}

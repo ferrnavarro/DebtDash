@@ -151,6 +151,19 @@ tr:hover { background: #f8fafc; }
 .chart-section { margin-bottom: 2rem; }
 .chart-section h2 { font-size: 1rem; margin-bottom: 0.75rem; }
 
+.form-field input[readonly] {
+  background: #f1f5f9;
+  color: #475569;
+  cursor: default;
+}
+
+@media (prefers-color-scheme: dark) {
+  .form-field input[readonly] {
+    background: #0f172a;
+    color: #94a3b8;
+  }
+}
+
 .payment-form { max-width: 700px; margin: 1rem 0; padding: 1rem; border: 1px solid #e5e7eb; border-radius: 8px; }
 .payment-form h2 { margin: 0 0 1rem; font-size: 1rem; }
 
