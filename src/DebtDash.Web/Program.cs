@@ -27,6 +27,7 @@ builder.Services.AddSingleton<IComparisonTimelineCalculator, ComparisonTimelineC
 builder.Services.AddScoped<IRateVarianceService, RateVarianceService>();
 builder.Services.AddScoped<ILoanProfileService, LoanProfileService>();
 builder.Services.AddScoped<IPaymentLedgerService, PaymentLedgerService>();
+builder.Services.AddScoped<ICsvImportService, CsvImportService>();
 builder.Services.AddScoped<IProjectionService, ProjectionService>();
 builder.Services.AddScoped<IDashboardAggregationService, DashboardAggregationService>();
 

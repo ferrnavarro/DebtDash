@@ -12,6 +12,7 @@ public interface IPaymentLedgerService
     Task<PaymentLogEntry> CreateAsync(PaymentUpsertRequest request);
     Task<PaymentLogEntry> UpdateAsync(Guid paymentId, PaymentUpsertRequest request);
     Task DeleteAsync(Guid paymentId);
+    Task<ImportConfirmResponse> ImportAsync(List<CsvPaymentRow> rows);
 }
 
 public class PaymentLedgerService(
@@ -113,6 +114,69 @@ public class PaymentLedgerService(
         await RecalculateAllEntries(loan);
 
         logger.LogInformation("Payment deleted: {Id}", paymentId);
+    }
+
+    public async Task<ImportConfirmResponse> ImportAsync(List<CsvPaymentRow> rows)
+    {
+        var loanIds = rows.Select(r => r.LoanId).Distinct().ToList();
+
+        var existingKeys = await db.PaymentLogEntries
+            .Where(p => loanIds.Contains(p.LoanProfileId))
+            .Select(p => new { p.LoanProfileId, p.PaymentDate, p.TotalPaid })
+            .ToListAsync();
+
+        var existingSet = existingKeys
+            .Select(k => (k.LoanProfileId, k.PaymentDate, k.TotalPaid))
+            .ToHashSet();
+
+        var imported = new List<PaymentLogEntry>();
+        var skipped = new List<SkippedRowDetail>();
+
+        foreach (var row in rows)
+        {
+            var key = (row.LoanId, row.PaymentDate, row.TotalPaid);
+            if (existingSet.Contains(key))
+            {
+                skipped.Add(new SkippedRowDetail(
+                    row.RowIndex,
+                    $"Duplicate: a payment with date {row.PaymentDate:yyyy-MM-dd} and total {row.TotalPaid:F2} already exists."));
+                continue;
+            }
+
+            var entry = new PaymentLogEntry
+            {
+                Id = Guid.NewGuid(),
+                LoanProfileId = row.LoanId,
+                PaymentDate = row.PaymentDate,
+                TotalPaid = row.TotalPaid,
+                PrincipalPaid = row.PrincipalPaid,
+                InterestPaid = row.InterestPaid,
+                FeesPaid = row.FeesPaid,
+                ManualRateOverrideEnabled = false,
+                ManualRateOverride = null,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            db.PaymentLogEntries.Add(entry);
+            imported.Add(entry);
+            existingSet.Add(key); // prevent intra-batch duplicates
+        }
+
+        if (imported.Count > 0)
+        {
+            await db.SaveChangesAsync();
+
+            var loan = await db.LoanProfiles.FirstOrDefaultAsync();
+            if (loan is not null)
+                await RecalculateAllEntries(loan);
+        }
+
+        logger.LogInformation(
+            "CSV import completed: imported={Imported}, skipped={Skipped}",
+            imported.Count, skipped.Count);
+
+        return new ImportConfirmResponse(imported.Count, skipped.Count, skipped);
     }
 
     private async Task RecalculateFromEntry(LoanProfile loan, PaymentLogEntry entry)

@@ -1,6 +1,8 @@
 using DebtDash.Web.Api.Contracts;
 using DebtDash.Web.Domain.Services;
+using DebtDash.Web.Infrastructure.Persistence;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 
 namespace DebtDash.Web.Api;
 
@@ -48,6 +50,45 @@ public static class PaymentEndpoints
         {
             await service.DeleteAsync(paymentId);
             return Results.NoContent();
+        });
+
+        group.MapGet("/import/template", (ICsvImportService csvImport) =>
+        {
+            var template = csvImport.GenerateTemplate();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(template);
+            return Results.File(bytes, "text/csv", "payment-import-template.csv");
+        });
+
+        group.MapPost("/import/validate", async (
+            IFormFile? file,
+            ICsvImportService csvImport,
+            DebtDashDbContext db) =>
+        {
+            if (file is null)
+                return Results.BadRequest(new { error = "No file was uploaded." });
+
+            var loanIds = await db.LoanProfiles
+                .Select(l => l.Id)
+                .ToListAsync();
+
+            var (preview, fileError) = await csvImport.ParseAndValidateAsync(file, new HashSet<Guid>(loanIds));
+
+            if (fileError is not null)
+                return Results.BadRequest(new { error = fileError });
+
+            return Results.Ok(preview);
+        }).DisableAntiforgery();
+
+        group.MapPost("/import/confirm", async (
+            ImportConfirmRequest request,
+            IValidator<ImportConfirmRequest> validator,
+            IPaymentLedgerService service) =>
+        {
+            return await ValidationExtensions.ValidateAndProcess(request, validator, async () =>
+            {
+                var result = await service.ImportAsync(request.Rows);
+                return Results.Ok(result);
+            });
         });
 
         return group;

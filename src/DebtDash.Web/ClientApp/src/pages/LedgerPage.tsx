@@ -6,9 +6,18 @@ import {
   updatePayment,
   deletePayment,
 } from '../services/paymentApi';
-import type { PaymentLogEntry, PaymentUpsertRequest } from '../services/paymentApi';
+import type {
+  PaymentLogEntry,
+  PaymentUpsertRequest,
+  ImportPreviewResponse,
+  ImportConfirmResponse,
+} from '../services/paymentApi';
+import CsvImportDropzone from '../components/PaymentCsvImport/CsvImportDropzone';
+import ImportPreviewTable from '../components/PaymentCsvImport/ImportPreviewTable';
+import ImportResultSummary from '../components/PaymentCsvImport/ImportResultSummary';
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
+type ImportState = 'idle' | 'preview' | 'result';
 
 export default function LedgerPage() {
   const [status, setStatus] = useState<Status>('loading');
@@ -27,6 +36,11 @@ export default function LedgerPage() {
     manualRateOverrideEnabled: false,
     manualRateOverride: null,
   });
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [importState, setImportState] = useState<ImportState>('idle');
+  const [importPreview, setImportPreview] = useState<ImportPreviewResponse | null>(null);
+  const [importResult, setImportResult] = useState<ImportConfirmResponse | null>(null);
 
   const pageSize = 50;
 
@@ -106,6 +120,30 @@ export default function LedgerPage() {
     }
   }
 
+  function handlePreviewReady(preview: ImportPreviewResponse) {
+    setImportPreview(preview);
+    setImportState('preview');
+  }
+
+  async function handleImported(result: ImportConfirmResponse) {
+    setImportResult(result);
+    setImportState('result');
+    if (result.importedCount > 0) {
+      await loadPayments();
+    }
+  }
+
+  function handleImportCancel() {
+    setImportState('idle');
+    setImportPreview(null);
+  }
+
+  function handleImportReset() {
+    setImportState('idle');
+    setImportPreview(null);
+    setImportResult(null);
+  }
+
   if (status === 'loading' && payments.length === 0) {
     return (
       <main className="page">
@@ -133,6 +171,33 @@ export default function LedgerPage() {
       >
         + Add Payment
       </button>
+
+      <details
+        open={importOpen}
+        onToggle={(e) => {
+          const open = (e.target as HTMLDetailsElement).open;
+          setImportOpen(open);
+          if (!open) handleImportReset();
+        }}
+        className="import-panel"
+      >
+        <summary className="btn btn-secondary">Import from CSV</summary>
+        <div className="import-panel-content">
+          {importState === 'idle' && (
+            <CsvImportDropzone onPreviewReady={handlePreviewReady} />
+          )}
+          {importState === 'preview' && importPreview && (
+            <ImportPreviewTable
+              preview={importPreview}
+              onImported={handleImported}
+              onCancel={handleImportCancel}
+            />
+          )}
+          {importState === 'result' && importResult && (
+            <ImportResultSummary result={importResult} onReset={handleImportReset} />
+          )}
+        </div>
+      </details>
 
       {showForm && (
         <form onSubmit={handleSubmit} className="form payment-form">
@@ -202,7 +267,7 @@ export default function LedgerPage() {
       ) : (
         <>
           <div className="table-container">
-            <table aria-label="Payment ledger">
+            <table aria-label="Payment ledger test">
               <thead>
                 <tr>
                   <th scope="col">Date</th>

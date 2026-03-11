@@ -28,3 +28,17 @@ public class PaymentUpsertRequestValidator : AbstractValidator<PaymentUpsertRequ
             .WithMessage("Manual rate override value is required when override is enabled.");
     }
 }
+
+public class ImportConfirmRequestValidator : AbstractValidator<ImportConfirmRequest>
+{
+    public ImportConfirmRequestValidator()
+    {
+        RuleFor(x => x.Rows)
+            .NotEmpty()
+            .WithMessage("Import rows must not be empty.");
+        RuleFor(x => x.Rows)
+            .Must(r => r.Count <= 500)
+            .When(x => x.Rows is { Count: > 0 })
+            .WithMessage("Cannot import more than 500 rows at once.");
+    }
+}
