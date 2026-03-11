@@ -163,3 +163,34 @@ public record PrincipalInterestTrendPoint(
 public record DebtCountdownPoint(
     DateOnly Date,
     decimal RemainingBalance);
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CSV Payment Import Contracts (Feature 001-csv-payment-import)
+// ──────────────────────────────────────────────────────────────────────────────
+
+public record CsvPaymentRow(
+    int RowIndex,
+    Guid LoanId,
+    DateOnly PaymentDate,
+    decimal TotalPaid,
+    decimal PrincipalPaid,
+    decimal InterestPaid,
+    decimal FeesPaid);
+
+public record CsvRowError(int RowIndex, List<string> Errors);
+
+public record ImportPreviewResponse(
+    int TotalRows,
+    int ValidCount,
+    int InvalidCount,
+    List<CsvPaymentRow> ValidRows,
+    List<CsvRowError> InvalidRows);
+
+public record ImportConfirmRequest(List<CsvPaymentRow> Rows);
+
+public record SkippedRowDetail(int RowIndex, string Reason);
+
+public record ImportConfirmResponse(
+    int ImportedCount,
+    int SkippedCount,
+    List<SkippedRowDetail> SkippedRows);

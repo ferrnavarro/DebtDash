@@ -1,0 +1,269 @@
+openapi: 3.0.3
+info:
+  title: DebtDash CSV Payment Import API
+  version: 0.1.0
+  description: >
+    API contract for bulk payment import via CSV file upload.
+    Three endpoints: download a CSV template, validate an uploaded CSV file,
+    and confirm a previously validated import batch.
+servers:
+  - url: http://localhost:5000/api
+paths:
+  /payments/import/template:
+    get:
+      summary: Download CSV template
+      description: >
+        Returns a CSV file with the correct column headers and one example row.
+        Clients should offer this as a download before the user prepares their import file.
+      responses:
+        '200':
+          description: CSV template file
+          content:
+            text/csv:
+              schema:
+                type: string
+                example: |
+                  LoanId,PaymentDate,TotalPaid,PrincipalPaid,InterestPaid,FeesPaid
+                  00000000-0000-0000-0000-000000000000,2026-01-15,1500.00,1200.00,280.00,20.00
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="payment-import-template.csv"
+
+  /payments/import/validate:
+    post:
+      summary: Validate a CSV file and return a preview
+      description: >
+        Accepts a multipart/form-data upload of a CSV file. Parses and validates
+        all rows, returning a split view of valid rows (ready to confirm) and
+        invalid rows (with per-row error details). No data is persisted.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file. Max 2 MB, max 500 data rows.
+      responses:
+        '200':
+          description: Validation preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportPreviewResponse'
+        '400':
+          description: >
+            File-level rejection: wrong format, exceeds size limit, exceeds row
+            limit, or missing required header columns.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /payments/import/confirm:
+    post:
+      summary: Confirm and persist a validated import batch
+      description: >
+        Accepts the valid rows returned from the validate endpoint and persists
+        them as PaymentLogEntry records. Duplicate rows (matching LoanId +
+        PaymentDate + TotalPaid) are skipped with a warning. Derived fields
+        (DaysSincePreviousPayment, RemainingBalanceAfterPayment, CalculatedRealRate)
+        are computed server-side after insert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportConfirmRequest'
+      responses:
+        '200':
+          description: Import result summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportConfirmResponse'
+        '400':
+          description: Request body validation failure (empty rows, exceeds limit).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: One or more LoanId values not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+components:
+  schemas:
+    CsvPaymentRow:
+      type: object
+      required:
+        - rowIndex
+        - loanId
+        - paymentDate
+        - totalPaid
+        - principalPaid
+        - interestPaid
+        - feesPaid
+      properties:
+        rowIndex:
+          type: integer
+          description: 1-based row number in the original CSV (excluding header row).
+          example: 1
+        loanId:
+          type: string
+          format: uuid
+          description: ID of the existing LoanProfile this payment belongs to.
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        paymentDate:
+          type: string
+          format: date
+          description: Payment date in ISO 8601 format (YYYY-MM-DD).
+          example: "2026-01-15"
+        totalPaid:
+          type: number
+          format: decimal
+          description: Total payment amount. Must be > 0.
+          example: 1500.00
+        principalPaid:
+          type: number
+          format: decimal
+          description: Portion applied to principal. Must be ≥ 0.
+          example: 1200.00
+        interestPaid:
+          type: number
+          format: decimal
+          description: Portion applied to interest. Must be ≥ 0.
+          example: 280.00
+        feesPaid:
+          type: number
+          format: decimal
+          description: Portion applied to fees. Must be ≥ 0.
+          example: 20.00
+
+    CsvRowError:
+      type: object
+      required:
+        - rowIndex
+        - errors
+      properties:
+        rowIndex:
+          type: integer
+          description: 1-based row number in the original CSV.
+          example: 3
+        errors:
+          type: array
+          items:
+            type: string
+          description: One or more human-readable error messages for this row.
+          example:
+            - "PaymentDate is required."
+            - "TotalPaid must be greater than 0."
+
+    ImportPreviewResponse:
+      type: object
+      required:
+        - totalRows
+        - validCount
+        - invalidCount
+        - validRows
+        - invalidRows
+      properties:
+        totalRows:
+          type: integer
+          description: Total number of data rows read from the file (excluding header).
+          example: 12
+        validCount:
+          type: integer
+          description: Number of rows that passed all validation rules.
+          example: 10
+        invalidCount:
+          type: integer
+          description: Number of rows that failed one or more validation rules.
+          example: 2
+        validRows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CsvPaymentRow'
+          description: Rows ready for confirmation. Pass these back in ImportConfirmRequest.
+        invalidRows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CsvRowError'
+          description: Rows with errors, for user review and correction.
+
+    ImportConfirmRequest:
+      type: object
+      required:
+        - rows
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CsvPaymentRow'
+          description: Valid rows to persist. Must not be empty and must not exceed 500 items.
+          minItems: 1
+          maxItems: 500
+
+    ImportConfirmResponse:
+      type: object
+      required:
+        - importedCount
+        - skippedCount
+        - skippedRows
+      properties:
+        importedCount:
+          type: integer
+          description: Number of payment entries successfully created.
+          example: 9
+        skippedCount:
+          type: integer
+          description: Number of rows skipped because a matching payment already exists.
+          example: 1
+        skippedRows:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkippedRowDetail'
+          description: Details of each skipped row.
+
+    SkippedRowDetail:
+      type: object
+      required:
+        - rowIndex
+        - reason
+      properties:
+        rowIndex:
+          type: integer
+          description: 1-based row index from the original CSV.
+          example: 7
+        reason:
+          type: string
+          description: Human-readable skip reason.
+          example: "Duplicate: a payment with the same date and amount already exists for this loan."
+
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
